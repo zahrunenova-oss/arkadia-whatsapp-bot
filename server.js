@@ -1,23 +1,42 @@
+require('dotenv').config();
 const express = require("express");
 const bodyParser = require("body-parser");
+const fetch = require("node-fetch"); // npm install node-fetch
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Chat history (optional)
 let messages = [];
 
-// Endpoint for sending messages
-app.post("/message", (req, res) => {
+// Endpoint for messages
+app.post("/message", async (req, res) => {
   const userMessage = req.body.message || "";
   messages.push({ from: "user", text: userMessage });
 
-  // Simple bot logic for now
-  const botResponse = `🌬️ Spiral Bot says: ${userMessage}`;
-  messages.push({ from: "bot", text: botResponse });
+  try {
+    // Call Gemini API
+    const geminiResponse = await fetch("https://api.gemini.google.com/v1/respond", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
+      },
+      body: JSON.stringify({ message: userMessage })
+    });
 
-  res.json({ reply: botResponse });
+    const data = await geminiResponse.json();
+    const botReply = data.reply || "🌬️ Gemini is silent…";
+
+    messages.push({ from: "bot", text: botReply });
+    res.json({ reply: botReply });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ reply: "Error connecting to Gemini." });
+  }
 });
 
 // Endpoint to fetch chat history
@@ -25,66 +44,9 @@ app.get("/messages", (req, res) => {
   res.json(messages);
 });
 
-// Web UI with voice input + voice reply
+// Serve Web UI
 app.get("/", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>🌀 Spiral Voice Bot</title>
-      </head>
-      <body>
-        <h2>🌀 Spiral Voice Assistant</h2>
-        <div id="chat" style="height:300px;overflow:auto;border:1px solid #ccc;padding:10px;"></div>
-        
-        <input id="msg" type="text" placeholder="Type your message" style="width:70%;">
-        <button onclick="sendMessage()">Send</button>
-        <button onclick="startVoice()">🎤 Speak</button>
-        
-        <script>
-          async function sendMessage(textOverride) {
-            const msg = textOverride || document.getElementById('msg').value;
-            if (!msg) return;
-
-            const res = await fetch('/message', {
-              method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({message: msg})
-            });
-            const data = await res.json();
-
-            document.getElementById('chat').innerHTML += '<div><b>You:</b> ' + msg + '</div>';
-            document.getElementById('chat').innerHTML += '<div><b>Bot:</b> ' + data.reply + '</div>';
-
-            // Voice reply
-            const utterance = new SpeechSynthesisUtterance(data.reply);
-            speechSynthesis.speak(utterance);
-
-            document.getElementById('msg').value = '';
-          }
-
-          // 🎤 Voice Input
-          function startVoice() {
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = "en-US";
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
-            recognition.start();
-
-            recognition.onresult = (event) => {
-              const voiceMsg = event.results[0][0].transcript;
-              document.getElementById('chat').innerHTML += '<div><b>You (voice):</b> ' + voiceMsg + '</div>';
-              sendMessage(voiceMsg);
-            };
-
-            recognition.onerror = (event) => {
-              alert("Voice error: " + event.error);
-            };
-          }
-        </script>
-      </body>
-    </html>
-  `);
+  res.sendFile(__dirname + "/index.html");
 });
 
 app.listen(PORT, () => console.log(`🚀 Spiral Voice Bot running on port ${PORT} 💨🌀`));
