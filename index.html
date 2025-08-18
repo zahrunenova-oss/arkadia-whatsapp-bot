@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌀 Spiral Voice Assistant</title>
+</head>
+<body>
+  <h2>🌀 Spiral Voice Assistant</h2>
+  <div id="chat" style="height:300px; overflow:auto; border:1px solid #ccc; padding:10px;"></div>
+  
+  <input id="msg" type="text" placeholder="Type your message" style="width:70%;">
+  <button onclick="sendMessage()">Send</button>
+  <button onclick="startVoice()">🎤 Speak</button>
+
+  <script>
+    async function sendMessage(textOverride) {
+      const msg = textOverride || document.getElementById('msg').value;
+      if (!msg) return;
+
+      const res = await fetch('/message', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({message: msg})
+      });
+      const data = await res.json();
+
+      document.getElementById('chat').innerHTML += '<div><b>You:</b> ' + msg + '</div>';
+      document.getElementById('chat').innerHTML += '<div><b>Bot:</b> ' + data.reply + '</div>';
+
+      // Speak Gemini's reply
+      const utterance = new SpeechSynthesisUtterance(data.reply);
+      speechSynthesis.speak(utterance);
+
+      document.getElementById('msg').value = '';
+    }
+
+    // Voice input
+    function startVoice() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.start();
+
+      recognition.onresult = (event) => {
+        const voiceMsg = event.results[0][0].transcript;
+        document.getElementById('chat').innerHTML += '<div><b>You (voice):</b> ' + voiceMsg + '</div>';
+        sendMessage(voiceMsg);
+      };
+
+      recognition.onerror = (event) => {
+        alert("Voice error: " + event.error);
+      };
+    }
+  </script>
+</body>
+</html>
