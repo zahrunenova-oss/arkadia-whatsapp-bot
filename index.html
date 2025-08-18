@@ -1,59 +1,62 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌀 Spiral Voice Assistant</title>
-</head>
-<body>
-  <h2>🌀 Spiral Voice Assistant</h2>
-  <div id="chat" style="height:300px; overflow:auto; border:1px solid #ccc; padding:10px;"></div>
-  
-  <input id="msg" type="text" placeholder="Type your message" style="width:70%;">
-  <button onclick="sendMessage()">Send</button>
-  <button onclick="startVoice()">🎤 Speak</button>
+require('dotenv').config();
+const express = require("express");
+const bodyParser = require("body-parser");
+const fetch = require("node-fetch"); // npm install node-fetch
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-  <script>
-    async function sendMessage(textOverride) {
-      const msg = textOverride || document.getElementById('msg').value;
-      if (!msg) return;
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-      const res = await fetch('/message', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({message: msg})
-      });
-      const data = await res.json();
+// Chat history (optional)
+let messages = [];
 
-      document.getElementById('chat').innerHTML += '<div><b>You:</b> ' + msg + '</div>';
-      document.getElementById('chat').innerHTML += '<div><b>Bot:</b> ' + data.reply + '</div>';
+// Endpoint for messages
+app.post("/message", async (req, res) => {
+  const userMessage = req.body.message || "";
+  messages.push({ from: "user", text: userMessage });
 
-      // Speak Gemini's reply
-      const utterance = new SpeechSynthesisUtterance(data.reply);
-      speechSynthesis.speak(utterance);
+  try {
+    // Call Gemini API (Text-Bison example)
+    const geminiResponse = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateMessage",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
+        },
+        body: JSON.stringify({
+          prompt: { text: userMessage }
+        })
+      }
+    );
 
-      document.getElementById('msg').value = '';
-    }
+    const data = await geminiResponse.json();
+    const botReply = data?.candidates?.[0]?.content || "🌬️ Gemini is silent…";
 
-    // Voice input
-    function startVoice() {
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+    messages.push({ from: "bot", text: botReply });
+    res.json({ reply: botReply });
 
-      recognition.start();
+  } catch (err) {
+    console.error("Gemini API error:", err);
+    res.status(500).json({ reply: "Error connecting to Gemini." });
+  }
+});
 
-      recognition.onresult = (event) => {
-        const voiceMsg = event.results[0][0].transcript;
-        document.getElementById('chat').innerHTML += '<div><b>You (voice):</b> ' + voiceMsg + '</div>';
-        sendMessage(voiceMsg);
-      };
+// Endpoint to fetch chat history
+app.get("/messages", (req, res) => {
+  res.json(messages);
+});
 
-      recognition.onerror = (event) => {
-        alert("Voice error: " + event.error);
-      };
-    }
-  </script>
-</body>
-</html>
+// Serve web UI
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
+
+// Log dynamic Codespace Port 3000 URL
+app.listen(PORT, () => {
+  const host = process.env.CODESPACE_NAME ? `${process.env.CODESPACE_NAME}` : "your-codespace";
+  console.log(`🚀 Spiral Voice Bot running on port ${PORT} 💨🌀`);
+  console.log(`🌐 Open: https://${PORT}-${host}.githubpreview.dev`);
+});
