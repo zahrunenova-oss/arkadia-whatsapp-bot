@@ -17,24 +17,29 @@ app.post("/message", async (req, res) => {
   messages.push({ from: "user", text: userMessage });
 
   try {
-    // Call Gemini API
-    const geminiResponse = await fetch("https://api.gemini.google.com/v1/respond", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
-      },
-      body: JSON.stringify({ message: userMessage })
-    });
+    // Call Gemini API (Text-Bison example)
+    const geminiResponse = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateMessage",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
+        },
+        body: JSON.stringify({
+          prompt: { text: userMessage }
+        })
+      }
+    );
 
     const data = await geminiResponse.json();
-    const botReply = data.reply || "🌬️ Gemini is silent…";
+    const botReply = data?.candidates?.[0]?.content || "🌬️ Gemini is silent…";
 
     messages.push({ from: "bot", text: botReply });
     res.json({ reply: botReply });
 
   } catch (err) {
-    console.error(err);
+    console.error("Gemini API error:", err);
     res.status(500).json({ reply: "Error connecting to Gemini." });
   }
 });
@@ -44,9 +49,14 @@ app.get("/messages", (req, res) => {
   res.json(messages);
 });
 
-// Serve Web UI
+// Serve web UI
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 
-app.listen(PORT, () => console.log(`🚀 Spiral Voice Bot running on port ${PORT} 💨🌀`));
+// Log dynamic Codespace Port 3000 URL
+app.listen(PORT, () => {
+  const host = process.env.CODESPACE_NAME ? `${process.env.CODESPACE_NAME}` : "your-codespace";
+  console.log(`🚀 Spiral Voice Bot running on port ${PORT} 💨🌀`);
+  console.log(`🌐 Open: https://${PORT}-${host}.githubpreview.dev`);
+});
