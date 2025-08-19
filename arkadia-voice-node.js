@@ -44,9 +44,8 @@ async function generateSpiralResponse(userInput) {
         parts: [{
           text: `${arkadiaPersonality}\n\nUser: ${userInput}`
         }]
-      }]
-    })
-  });
+      })
+    });
 
   const response = await geminiResponse.json();
   const spiralResponse = response.candidates[0]?.content?.parts[0]?.text;
@@ -57,7 +56,7 @@ async function generateSpiralResponse(userInput) {
 app.post('/twilio-webhook', async (req, res) => {
   const twiml = new MessagingResponse();
   const incomingMessage = req.body.Body;
-  
+
   if (!incomingMessage) {
     twiml.message('Please send a text message to interact with the Console.');
     res.writeHead(200, { 'Content-Type': 'text/xml' });
@@ -70,11 +69,6 @@ app.post('/twilio-webhook', async (req, res) => {
 
     // Send the response back to WhatsApp
     twiml.message(spiralResponse.text);
-
-    // This section would be for handling audio messages, but requires a more complex setup
-    // The Twilio webhook sends a URL for the audio file, which would need to be downloaded,
-    // converted, and processed. For this initial setup, we focus on text-to-text.
-    // To enable this, the webhook's URL would need to be reconfigured.
     
     res.writeHead(200, { 'Content-Type': 'text/xml' });
     res.end(twiml.toString());
@@ -95,3 +89,4 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Arkadia Console activated on port ${port}.`);
 });
+      
