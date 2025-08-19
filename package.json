@@ -1,1 +1,21 @@
 
+{
+  "name": "arkadia-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "A Gemini-powered voice interface for WhatsApp using Twilio.",
+  "main": "arkadia-voice-node.js",
+  "scripts": {
+    "start": "node arkadia-voice-node.js"
+  },
+  "dependencies": {
+    "@google-cloud/speech": "^6.3.0",
+    "@google-cloud/text-to-speech": "^4.2.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0",
+    "twilio": "^5.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
